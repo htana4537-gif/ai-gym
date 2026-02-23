@@ -169,7 +169,7 @@ export const generateWeeklyPlan = async (profile: UserProfile): Promise<WeeklyPl
   }
 
   const prompt = `
-    Create a 1-day detailed Diet and Workout plan for ${profile.name}.
+    Create a 7-day detailed Diet and Workout plan for ${profile.name}.
     Goal: ${profile.goal}.
     Location: ${profile.country}.
     Budget Mode: ${profile.budgetMode}.

@@ -138,6 +138,15 @@ export interface RPGStats {
 
 export type SpecialMode = 'Standard' | 'DamageControl' | 'Travel';
 
+export interface MeasurementLog {
+  date: string;
+  weight: number;
+  waist?: number;
+  chest?: number;
+  arms?: number;
+  thighs?: number;
+}
+
 export interface UserProfile {
   name: string;
   age: number;
@@ -166,6 +175,7 @@ export interface UserProfile {
   connectedDevices: WearableProvider[];
   dailyStats: HealthStats;
   healthHistory: HealthStats[]; // Added for statistics
+  measurementsHistory: MeasurementLog[]; // Added for body measurements
   progressPhotos: ProgressPhoto[];
   // RPG
   rpgStats: RPGStats;

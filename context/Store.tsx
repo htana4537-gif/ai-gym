@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, PropsWithChildren } from 'react';
-import { UserProfile, WeeklyPlan, Message, Gender, Goal, ActivityLevel, Meal, WorkoutRoutine, FoodItem, NutrientDeficiency, Language, NutrientInfo, Exercise, WearableProvider, HealthStats, ProgressPhoto, RPGStats, RPGAttribute, LabelAnalysis, FoodEfficiency, SpecialMode } from '../types';
+import { UserProfile, WeeklyPlan, Message, Gender, Goal, ActivityLevel, Meal, WorkoutRoutine, FoodItem, NutrientDeficiency, Language, NutrientInfo, Exercise, WearableProvider, HealthStats, ProgressPhoto, RPGStats, RPGAttribute, LabelAnalysis, FoodEfficiency, SpecialMode, MeasurementLog } from '../types';
 import { analyzeSymptoms, analyzeFoodLog, getMealRecipe, getExerciseDetails, analyzeNutritionLabel, estimateLocalFoodPrices, analyzeActivityLog } from '../services/geminiService';
 
 // --- DATA & TRANSLATIONS ---
@@ -314,7 +314,8 @@ const defaultUser: UserProfile = {
       activeCalories: 0,
       lastSynced: 0
   },
-  healthHistory: [], // Initialized as empty
+  healthHistory: [],
+  measurementsHistory: [],
   progressPhotos: [],
   rpgStats: { level: 1, currentXP: 0, nextLevelXP: 500, title: 'Novice', attributes: { strength: {level:1, xp:0, maxXP:100}, agility: {level:1, xp:0, maxXP:100}, endurance: {level:1, xp:0, maxXP:100}, intelligence: {level:1, xp:0, maxXP:100}, mana: {level:1, xp:0, maxXP:100} } },
   lastPriceUpdate: 0,
@@ -361,6 +362,7 @@ interface AppState {
   getFoodImage: (name: string) => string;
   analyzeActivity: (activity: string, duration: string) => Promise<{name: string, calories: number} | null>;
   logManualActivity: (calories: number) => void;
+  logMeasurement: (log: MeasurementLog) => void;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -600,6 +602,14 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
       });
   };
 
+  const logMeasurement = (log: MeasurementLog) => {
+      setUser(prev => ({
+          ...prev,
+          weight: log.weight, // Update current weight
+          measurementsHistory: [...(prev.measurementsHistory || []), log]
+      }));
+  };
+
   const t = (key: any): string => { 
       const lang = user.language; 
       const dict = (translations as any)[lang];
@@ -698,7 +708,7 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
       toggleFavoriteMeal, toggleFavoriteWorkout, analyzeUserSymptoms, toggleFoodAvailability, logConsumedMeal, analyzeCustomMeal,
       getDailyNutrition, t, getLocalizedFoodName, getNutrientData, updatePlanMeal, updatePlanExercise,
       hydrateMealDetail, hydrateExerciseDetail, generateShoppingList, connectWearable, syncHealthData, addProgressPhoto, analyzeLabelImage, refreshFoodPrices, calculateFoodEfficiency,
-      activateDamageControl, activateTravelMode, getFoodImage, analyzeActivity, logManualActivity
+      activateDamageControl, activateTravelMode, getFoodImage, analyzeActivity, logManualActivity, logMeasurement
     }}>
       {children}
     </AppContext.Provider>

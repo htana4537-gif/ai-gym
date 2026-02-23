@@ -2,9 +2,68 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../context/Store';
 import { Settings } from '../App';
-import { HealthStats, ConsumedLog } from '../types';
+import { HealthStats, ConsumedLog, MeasurementLog } from '../types';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Plus, X, Camera, History, Settings as SettingsIcon, Activity, Scale, Ruler } from 'lucide-react';
 
 // --- VISUAL COMPONENTS ---
+
+const MeasurementModal = ({ onClose, onSave }: { onClose: () => void, onSave: (log: MeasurementLog) => void }) => {
+    const [weight, setWeight] = useState('');
+    const [waist, setWaist] = useState('');
+    const [chest, setChest] = useState('');
+    const [arms, setArms] = useState('');
+    const [thighs, setThighs] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave({
+            date: new Date().toISOString().split('T')[0],
+            weight: parseFloat(weight) || 0,
+            waist: parseFloat(waist) || undefined,
+            chest: parseFloat(chest) || undefined,
+            arms: parseFloat(arms) || undefined,
+            thighs: parseFloat(thighs) || undefined
+        });
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-fade-in">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-slate-800">Log Measurements</h3>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition"><X size={20} /></button>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Weight (kg)</label>
+                        <input type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-[#4ECDC4] outline-none font-mono text-lg" placeholder="0.0" required />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Waist (cm)</label>
+                            <input type="number" step="0.1" value={waist} onChange={e => setWaist(e.target.value)} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-[#4ECDC4] outline-none font-mono" placeholder="Optional" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Chest (cm)</label>
+                            <input type="number" step="0.1" value={chest} onChange={e => setChest(e.target.value)} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-[#4ECDC4] outline-none font-mono" placeholder="Optional" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Arms (cm)</label>
+                            <input type="number" step="0.1" value={arms} onChange={e => setArms(e.target.value)} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-[#4ECDC4] outline-none font-mono" placeholder="Optional" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Thighs (cm)</label>
+                            <input type="number" step="0.1" value={thighs} onChange={e => setThighs(e.target.value)} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-[#4ECDC4] outline-none font-mono" placeholder="Optional" />
+                        </div>
+                    </div>
+                    <button type="submit" className="w-full py-4 bg-[#4ECDC4] text-white font-bold rounded-xl shadow-lg shadow-[#4ECDC4]/30 hover:shadow-xl hover:scale-[1.02] transition-all">Save Log</button>
+                </form>
+            </div>
+        </div>
+    );
+};
 
 // Fixed ModernGlassCard children prop type to be optional to resolve TypeScript errors
 const ModernGlassCard = ({ children, className = "", onClick }: { children?: React.ReactNode, className?: string, onClick?: () => void }) => (
@@ -132,8 +191,9 @@ const HydrationCapsules = ({ current, target }: { current: number, target: numbe
 }
 
 export const Progress = () => {
-    const { user, addProgressPhoto, t, getDailyNutrition } = useAppStore();
+    const { user, addProgressPhoto, t, getDailyNutrition, logMeasurement } = useAppStore();
     const [activeTab, setActiveTab] = useState<'stats' | 'gallery' | 'camera' | 'settings'>('stats');
+    const [showMeasurementModal, setShowMeasurementModal] = useState(false);
     const [stream, setStream] = useState<MediaStream | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -185,6 +245,12 @@ export const Progress = () => {
     const today = new Date();
     const dateString = `SAT ${today.getDate()} ${today.getHours().toString().padStart(2,'0')}:${today.getMinutes().toString().padStart(2,'0')}`; // Mock day name for design match, or dynamic
     
+    // Prepare Chart Data for Weight
+    const weightData = (user.measurementsHistory || []).map(log => ({
+        date: log.date.slice(5), // MM-DD
+        weight: log.weight
+    })).slice(-10); // Last 10 entries
+
     // Camera Logic
     const startCamera = async () => {
         try {
@@ -271,11 +337,38 @@ export const Progress = () => {
                                     <span className="text-[9px] text-slate-400 italic font-serif">by AI Coach</span>
                                 </div>
                             </div>
-                            <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-lg">
-                                <img src={`https://picsum.photos/seed/${user.name}/200`} alt="Profile" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-gradient-to-tr from-[#4ECDC4]/30 to-purple-500/30 mix-blend-overlay"></div>
-                            </div>
+                            <button onClick={() => setShowMeasurementModal(true)} className="flex flex-col items-center justify-center w-16 h-16 rounded-full bg-white border-2 border-[#4ECDC4] shadow-lg text-[#4ECDC4] hover:bg-[#4ECDC4] hover:text-white transition-all">
+                                <Plus size={24} />
+                                <span className="text-[9px] font-bold mt-1">LOG</span>
+                            </button>
                         </div>
+
+                        {/* Weight Chart Section */}
+                        {weightData.length > 0 && (
+                            <ModernGlassCard className="p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <Scale size={20} className="text-[#A06CD5]" />
+                                        <span className="text-sm font-bold text-slate-700">Weight Progress</span>
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-500">{user.weight} kg</span>
+                                </div>
+                                <div className="h-48 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={weightData}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94A3B8'}} dy={10} />
+                                            <YAxis domain={['dataMin - 2', 'dataMax + 2']} axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94A3B8'}} />
+                                            <Tooltip 
+                                                contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}}
+                                                itemStyle={{color: '#A06CD5', fontWeight: 'bold'}}
+                                            />
+                                            <Line type="monotone" dataKey="weight" stroke="#A06CD5" strokeWidth={3} dot={{fill: '#A06CD5', strokeWidth: 2, r: 4, stroke: '#fff'}} activeDot={{r: 6}} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </ModernGlassCard>
+                        )}
 
                         {/* ROW 1: Heart Rate (Big) & Device Info */}
                         <div className="grid grid-cols-2 gap-4">
@@ -500,6 +593,10 @@ export const Progress = () => {
 
                 {activeTab === 'settings' && (
                     <Settings />
+                )}
+                
+                {showMeasurementModal && (
+                    <MeasurementModal onClose={() => setShowMeasurementModal(false)} onSave={logMeasurement} />
                 )}
             </div>
         </div>
